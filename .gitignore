@@ -1,0 +1,6 @@
+# ignore the main executable
+/main
+
+# ignore Vim files
+.*.swp
+.*.swo
