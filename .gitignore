@@ -1,6 +1,9 @@
 # ignore the main executable
 /main
 
+# Ignore the go checksum file
+go.sum
+
 # ignore Vim files
 .*.swp
 .*.swo

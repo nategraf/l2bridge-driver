@@ -1,4 +1,5 @@
 package bridge
+/*
 
 import (
 	"fmt"
@@ -83,3 +84,4 @@ func linkContainers(action, parentIP, childIP string, ports []types.TransportPor
 	}
 	return nil
 }
+*/

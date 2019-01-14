@@ -1,4 +1,5 @@
 package bridge
+/*
 
 import "github.com/docker/libnetwork/iptables"
 
@@ -18,3 +19,4 @@ func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeIn
 
 	return nil
 }
+*/

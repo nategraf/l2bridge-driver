@@ -8,12 +8,6 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const (
-	// DefaultBridgeName is the default name for the bridge interface managed
-	// by the driver when unspecified by the caller.
-	DefaultBridgeName = "docker0"
-)
-
 // Interface models the bridge network device.
 type bridgeInterface struct {
 	Link        netlink.Link
@@ -31,11 +25,6 @@ type bridgeInterface struct {
 func newInterface(nlh *netlink.Handle, config *networkConfiguration) (*bridgeInterface, error) {
 	var err error
 	i := &bridgeInterface{nlh: nlh}
-
-	// Initialize the bridge name to the default if unspecified.
-	if config.BridgeName == "" {
-		config.BridgeName = DefaultBridgeName
-	}
 
 	// Attempt to find an existing bridge named with the specified name.
 	i.Link, err = nlh.LinkByName(config.BridgeName)
@@ -70,6 +59,7 @@ func (i *bridgeInterface) addresses() ([]netlink.Addr, []netlink.Addr, error) {
 	return v4addr, v6addr, nil
 }
 
+/*
 func (i *bridgeInterface) programIPv6Address() error {
 	_, nlAddressList, err := i.addresses()
 	if err != nil {
@@ -84,3 +74,4 @@ func (i *bridgeInterface) programIPv6Address() error {
 	}
 	return nil
 }
+*/

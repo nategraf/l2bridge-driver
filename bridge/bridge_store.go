@@ -1,4 +1,6 @@
 package bridge
+//TODO(nategraf) Figure out an alternative to libnetwork.Datastore and implement it.
+/*
 
 import (
 	"encoding/json"
@@ -386,3 +388,4 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	}
 	ep.extConnConfig.PortBindings = tmp
 }
+*/

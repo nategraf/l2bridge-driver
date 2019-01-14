@@ -10,7 +10,7 @@ const (
 )
 
 func main() {
-    d := &driver.Driver{}
+    d := driver.New()
     h := network.NewHandler(d)
     h.ServeUnix(socketAddress, 0)
 }

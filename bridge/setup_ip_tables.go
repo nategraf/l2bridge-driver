@@ -1,4 +1,5 @@
 package bridge
+/*
 
 import (
 	"errors"
@@ -361,3 +362,4 @@ func clearEndpointConnections(nlh *netlink.Handle, ep *bridgeEndpoint) {
 	}
 	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
 }
+*/

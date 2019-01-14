@@ -1,4 +1,5 @@
 package bridge
+/*
 
 import (
 	"fmt"
@@ -54,3 +55,4 @@ func setupIPForwarding(enableIPTables bool) error {
 	}
 	return nil
 }
+*/

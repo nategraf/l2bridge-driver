@@ -13,12 +13,6 @@ import (
 func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	var setMac bool
 
-	// We only attempt to create the bridge when the requested device name is
-	// the default one.
-	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
-		return NonDefaultBridgeExistError(config.BridgeName)
-	}
-
 	// Set the bridgeInterface netlink.Bridge.
 	i.Link = &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
@@ -36,8 +30,7 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	}
 
 	if err = i.nlh.LinkAdd(i.Link); err != nil {
-		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
-		return ioctlCreateBridge(config.BridgeName, setMac)
+		return err
 	}
 
 	if setMac {

@@ -1,4 +1,5 @@
 package bridge
+/*
 
 import (
 	"errors"
@@ -161,3 +162,4 @@ func isRunningInContainer() bool {
 	_, err := os.Stat("/.dockerenv")
 	return !os.IsNotExist(err)
 }
+*/

@@ -2,9 +2,9 @@ package bridge
 
 import (
 	"fmt"
-	"net"
 )
 
+/*
 // ErrConfigExists error is returned when driver already has a config applied.
 type ErrConfigExists struct{}
 
@@ -14,6 +14,7 @@ func (ece *ErrConfigExists) Error() string {
 
 // Forbidden denotes the type of this error
 func (ece *ErrConfigExists) Forbidden() {}
+*/
 
 // ErrInvalidDriverConfig error is returned when Bridge Driver is passed an invalid config
 type ErrInvalidDriverConfig struct{}
@@ -25,6 +26,7 @@ func (eidc *ErrInvalidDriverConfig) Error() string {
 // BadRequest denotes the type of this error
 func (eidc *ErrInvalidDriverConfig) BadRequest() {}
 
+/*
 // ErrInvalidNetworkConfig error is returned when a network is created on a driver without valid config.
 type ErrInvalidNetworkConfig struct{}
 
@@ -84,6 +86,7 @@ func (enip *ErrNoIPAddr) Error() string {
 
 // InternalError denotes the type of this error
 func (enip *ErrNoIPAddr) InternalError() {}
+*/
 
 // ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not not valid.
 type ErrInvalidGateway struct{}
@@ -95,6 +98,7 @@ func (eig *ErrInvalidGateway) Error() string {
 // BadRequest denotes the type of this error
 func (eig *ErrInvalidGateway) BadRequest() {}
 
+/*
 // ErrInvalidContainerSubnet is returned when the container subnet (FixedCIDR) is not valid.
 type ErrInvalidContainerSubnet struct{}
 
@@ -104,6 +108,7 @@ func (eis *ErrInvalidContainerSubnet) Error() string {
 
 // BadRequest denotes the type of this error
 func (eis *ErrInvalidContainerSubnet) BadRequest() {}
+*/
 
 // ErrInvalidMtu is returned when the user provided MTU is not valid.
 type ErrInvalidMtu int
@@ -115,6 +120,7 @@ func (eim ErrInvalidMtu) Error() string {
 // BadRequest denotes the type of this error
 func (eim ErrInvalidMtu) BadRequest() {}
 
+/*
 // ErrInvalidPort is returned when the container or host port specified in the port binding is not valid.
 type ErrInvalidPort string
 
@@ -339,3 +345,4 @@ func (address InvalidLinkIPAddrError) Error() string {
 
 // BadRequest denotes the type of this error
 func (address InvalidLinkIPAddrError) BadRequest() {}
+*/

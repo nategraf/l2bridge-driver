@@ -1,4 +1,5 @@
 package bridge
+/*
 
 import (
 	"bytes"
@@ -49,3 +50,4 @@ func reconcileIPForwardingSetting(t *testing.T, original []byte) {
 		writeIPForwardingSetting(t, original)
 	}
 }
+*/
