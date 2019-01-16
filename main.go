@@ -1,16 +1,16 @@
 package main
 
 import (
-    "github.com/docker/go-plugins-helpers/network"
-    "github.com/nategraf/simplenet/driver"
+	"github.com/docker/go-plugins-helpers/network"
+	"github.com/nategraf/l2bridge-driver/l2bridge"
 )
 
 const (
-    socketAddress = "/run/docker/plugins/simple.sock"
+	socketAddress = "/run/docker/plugins/l2bridge.sock"
 )
 
 func main() {
-    d := driver.New()
-    h := network.NewHandler(d)
-    h.ServeUnix(socketAddress, 0)
+	d := l2bridge.NewDriver()
+	h := network.NewHandler(d)
+	h.ServeUnix(socketAddress, 0)
 }

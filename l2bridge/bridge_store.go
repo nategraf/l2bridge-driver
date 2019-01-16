@@ -1,4 +1,4 @@
-package bridge
+package l2bridge
 //TODO(nategraf) Figure out an alternative to libnetwork.Datastore and implement it.
 /*
 

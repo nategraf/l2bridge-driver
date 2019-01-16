@@ -1,4 +1,4 @@
-package bridge
+package l2bridge
 
 import (
 	"fmt"
@@ -46,6 +46,7 @@ func (eicc *ErrInvalidContainerConfig) Error() string {
 
 // BadRequest denotes the type of this error
 func (eicc *ErrInvalidContainerConfig) BadRequest() {}
+*/
 
 // ErrInvalidEndpointConfig error is returned when an endpoint create is attempted with an invalid endpoint configuration.
 type ErrInvalidEndpointConfig struct{}
@@ -57,6 +58,7 @@ func (eiec *ErrInvalidEndpointConfig) Error() string {
 // BadRequest denotes the type of this error
 func (eiec *ErrInvalidEndpointConfig) BadRequest() {}
 
+/*
 // ErrNetworkExists error is returned when a network already exists and another network is created.
 type ErrNetworkExists struct{}
 
@@ -161,6 +163,7 @@ func (aee ActiveEndpointsError) Error() string {
 
 // Forbidden denotes the type of this error
 func (aee ActiveEndpointsError) Forbidden() {}
+*/
 
 // InvalidNetworkIDError is returned when the passed
 // network id for an existing network is not a known id.
@@ -184,6 +187,7 @@ func (ieie InvalidEndpointIDError) Error() string {
 // BadRequest denotes the type of this error
 func (ieie InvalidEndpointIDError) BadRequest() {}
 
+/*
 // InvalidSandboxIDError is returned when the passed
 // sandbox id is not valid.
 type InvalidSandboxIDError string
@@ -194,6 +198,7 @@ func (isie InvalidSandboxIDError) Error() string {
 
 // BadRequest denotes the type of this error
 func (isie InvalidSandboxIDError) BadRequest() {}
+*/
 
 // EndpointNotFoundError is returned when the no endpoint
 // with the passed endpoint id is found.
@@ -206,6 +211,7 @@ func (enfe EndpointNotFoundError) Error() string {
 // NotFound denotes the type of this error
 func (enfe EndpointNotFoundError) NotFound() {}
 
+/*
 // NonDefaultBridgeExistError is returned when a non-default
 // bridge config is passed but it does not already exist.
 type NonDefaultBridgeExistError string
@@ -346,3 +352,23 @@ func (address InvalidLinkIPAddrError) Error() string {
 // BadRequest denotes the type of this error
 func (address InvalidLinkIPAddrError) BadRequest() {}
 */
+
+// ErrNoNetwork is returned if no network with the specified id exists
+type ErrNoNetwork string
+
+func (enn ErrNoNetwork) Error() string {
+	return fmt.Sprintf("No network (%s) exists", string(enn))
+}
+
+// NotFound denotes the type of this error
+func (enn ErrNoNetwork) NotFound() {}
+
+// ErrEndpointExists is returned if more than one endpoint is added to the network
+type ErrEndpointExists string
+
+func (ee ErrEndpointExists) Error() string {
+	return fmt.Sprintf("Endpoint (%s) already exists (Only one endpoint allowed)", string(ee))
+}
+
+// Forbidden denotes the type of this error
+func (ee ErrEndpointExists) Forbidden() {}

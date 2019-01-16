@@ -1,5 +1,6 @@
 # ignore the main executable
 /main
+/l2bridge-driver
 
 # Ignore the go checksum file
 go.sum

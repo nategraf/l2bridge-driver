@@ -1,8 +1,7 @@
-package bridge
+package l2bridge
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -11,10 +10,6 @@ import (
 // Interface models the bridge network device.
 type bridgeInterface struct {
 	Link        netlink.Link
-	bridgeIPv4  *net.IPNet
-	bridgeIPv6  *net.IPNet
-	gatewayIPv4 net.IP
-	gatewayIPv6 net.IP
 	nlh         *netlink.Handle
 }
 

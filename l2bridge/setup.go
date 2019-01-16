@@ -1,4 +1,4 @@
-package bridge
+package l2bridge
 
 type setupStep func(*networkConfiguration, *bridgeInterface) error
 

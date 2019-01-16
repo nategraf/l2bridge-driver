@@ -1,4 +1,4 @@
-package bridge
+package l2bridge
 
 const (
 	// BridgeName label for bridge driver
