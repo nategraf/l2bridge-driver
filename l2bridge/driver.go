@@ -23,7 +23,11 @@ var capabilities = &network.CapabilitiesResponse{
 
 func logRequest(fname string, req interface{}, res interface{}, err error) {
 	if err == nil {
-		logrus.Infof("%s(%v): %v", fname, req, res)
+		if res == nil {
+			logrus.Infof("%s(%v)", fname, req)
+		} else {
+			logrus.Infof("%s(%v): %v", fname, req, res)
+		}
 		return
 	}
 	switch err.(type) {
@@ -109,7 +113,11 @@ func (d *Driver) DeleteEndpoint(req *network.DeleteEndpointRequest) (err error) 
 
 func (d *Driver) EndpointInfo(req *network.InfoRequest) (res *network.InfoResponse, err error) {
 	defer func() { logRequest("EndpointInfo", req, res, err) }()
-	return nil, types.NotImplementedErrorf("not implemented")
+	info, err := d.bridge.EndpointInfo(req.NetworkID, req.EndpointID)
+	if err != nil {
+		return nil, err
+	}
+	return &network.InfoResponse{Value: info}, nil
 }
 
 func (d *Driver) Join(req *network.JoinRequest) (res *network.JoinResponse, err error) {
@@ -136,12 +144,17 @@ func (d *Driver) DiscoverDelete(notif *network.DiscoveryNotification) (err error
 	return nil
 }
 
+// ProgramExternalConnectivity is called after Join for non-internal networks to give external network access.
+// Although this driver does not support external connectivity, it does not return an error because libnetwork
+// will fail the endpoint initialization if any error is returned.
 func (d *Driver) ProgramExternalConnectivity(req *network.ProgramExternalConnectivityRequest) (err error) {
 	defer func() { logRequest("ProgramExternalConnectivity", req, nil, err) }()
-	return types.NotImplementedErrorf("not implemented")
+	return nil
 }
 
+// RevokeExternalConnectivity is called bedore Leave when tearing down an endpoint to remove up external network access.
+// As for ProgramExternalConnectivity, we return no error here, bt take no action.
 func (d *Driver) RevokeExternalConnectivity(req *network.RevokeExternalConnectivityRequest) (err error) {
 	defer func() { logRequest("RevokeExternalConnectivity", req, nil, err) }()
-	return types.NotImplementedErrorf("not implemented")
+	return nil
 }

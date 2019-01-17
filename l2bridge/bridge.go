@@ -9,6 +9,7 @@ import (
 	//"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -82,24 +83,17 @@ type endpointConfiguration struct {
 	MacAddress net.HardwareAddr
 }
 
-// connectivityConfiguration represents the user specified configuration regarding the external connectivity
-type connectivityConfiguration struct {
-	PortBindings []types.PortBinding
-	ExposedPorts []types.TransportPort
-}
-
 type bridgeEndpoint struct {
-	id            string
-	nid           string
-	srcName       string
-	addr          *net.IPNet
-	addrv6        *net.IPNet
-	macAddress    net.HardwareAddr
-	config        *endpointConfiguration // User specified parameters
-	extConnConfig *connectivityConfiguration
-	portMapping   []types.PortBinding // Operation port bindings
-	dbIndex       uint64
-	dbExists      bool
+	id           string
+	nid          string
+	srcName      string
+	addr         *net.IPNet
+	addrv6       *net.IPNet
+	macAddress   net.HardwareAddr
+	config       *endpointConfiguration // User specified parameters
+	exposedPorts []types.TransportPort
+	dbIndex      uint64
+	dbExists     bool
 }
 
 type bridgeNetwork struct {
@@ -261,7 +255,6 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	if ep, ok := n.endpoints[eid]; ok {
 		return ep, nil
 	}
-
 	return nil, nil
 }
 
@@ -334,18 +327,29 @@ func (d *bridgeDriver) configure(option map[string]interface{}) error {
 }
 
 func (d *bridgeDriver) getNetwork(id string) (*bridgeNetwork, error) {
-	d.Lock()
-	defer d.Unlock()
-
 	if id == "" {
 		return nil, types.BadRequestErrorf("invalid network id: %s", id)
 	}
 
-	if nw, ok := d.networks[id]; ok {
-		return nw, nil
+	d.Lock()
+	n, ok := d.networks[id]
+	d.Unlock()
+
+	if !ok {
+		return nil, types.NotFoundErrorf("network %s does not exist", id)
+	}
+	if n == nil {
+		return nil, ErrNoNetwork(id)
 	}
 
-	return nil, types.NotFoundErrorf("network not found: %s", id)
+	// Sanity check
+	n.Lock()
+	eq := n.id == id
+	n.Unlock()
+	if !eq {
+		return nil, InvalidNetworkIDError(id)
+	}
+	return n, nil
 }
 
 func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
@@ -382,19 +386,13 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []*
 	}
 
 	c.PoolIPv4 = types.GetIPNetCopy(ipamV4Data[0].Pool)
-
-	if gw := ipamV4Data[0].Gateway; gw != nil {
-		c.DefaultGatewayIPv4 = gw.IP
-	} else if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
+	if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
 		c.DefaultGatewayIPv4 = gw.IP
 	}
 
 	if len(ipamV6Data) > 0 {
 		c.PoolIPv6 = ipamV6Data[0].Pool
-
-		if gw := ipamV4Data[0].Gateway; gw != nil {
-			c.DefaultGatewayIPv4 = gw.IP
-		} else if gw, ok := ipamV6Data[0].AuxAddresses[DefaultGatewayV6AuxKey]; ok {
+		if gw, ok := ipamV6Data[0].AuxAddresses[DefaultGatewayV6AuxKey]; ok {
 			c.DefaultGatewayIPv6 = gw.IP
 		}
 	}
@@ -691,36 +689,19 @@ func (d *bridgeDriver) CreateEndpoint(nid, eid string, ei *EndpointInterface, ep
 	defer osl.InitOSContext()()
 
 	if ei == nil {
-		return nil, errors.New("invalid interface info passed")
+		return nil, errors.New("invalid interface info")
 	}
 
-	// Get the network handler and make sure it exists
-	d.Lock()
-	n, ok := d.networks[nid]
-	dconfig := d.config
-	d.Unlock()
-
-	if !ok {
-		return nil, types.NotFoundErrorf("network %s does not exist", nid)
+	n, err := d.getNetwork(nid)
+	if err != nil {
+		return nil, err
 	}
-	if n == nil {
-		return nil, ErrNoNetwork(nid)
-	}
-
-	// Sanity check
-	n.Lock()
-	if n.id != nid {
-		n.Unlock()
-		return nil, InvalidNetworkIDError(nid)
-	}
-	n.Unlock()
 
 	// Check if endpoint id is good and retrieve correspondent endpoint
 	ep, err := n.getEndpoint(eid)
 	if err != nil {
 		return nil, err
 	}
-
 	// Endpoint with that id exists either on desired or other sandbox
 	if ep != nil {
 		return nil, ErrEndpointExists(eid)
@@ -814,7 +795,10 @@ func (d *bridgeDriver) CreateEndpoint(nid, eid string, ei *EndpointInterface, ep
 		return nil, fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
-	if !dconfig.EnableUserlandProxy {
+	d.Lock()
+	en := d.config.EnableUserlandProxy
+	d.Unlock()
+	if !en {
 		err = setHairpinMode(d.nlh, host, true)
 		if err != nil {
 			return nil, err
@@ -875,25 +859,10 @@ func (d *bridgeDriver) DeleteEndpoint(nid, eid string) error {
 
 	defer osl.InitOSContext()()
 
-	// Get the network handler and make sure it exists
-	d.Lock()
-	n, ok := d.networks[nid]
-	d.Unlock()
-
-	if !ok {
-		return types.InternalMaskableErrorf("network %s does not exist", nid)
+	n, err := d.getNetwork(nid)
+	if err != nil {
+		return err
 	}
-	if n == nil {
-		return ErrNoNetwork(nid)
-	}
-
-	// Sanity Check
-	n.Lock()
-	if n.id != nid {
-		n.Unlock()
-		return InvalidNetworkIDError(nid)
-	}
-	n.Unlock()
 
 	// Check endpoint id and if an endpoint is actually there
 	ep, err := n.getEndpoint(eid)
@@ -937,26 +906,12 @@ func (d *bridgeDriver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-/*
-func (d *bridgeDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	// Get the network handler and make sure it exists
-	d.Lock()
-	n, ok := d.networks[nid]
-	d.Unlock()
-	if !ok {
-		return nil, types.NotFoundErrorf("network %s does not exist", nid)
+// EndpointInfo returns useful data about an endpoint such as mac address and exposed ports.
+func (d *bridgeDriver) EndpointInfo(nid, eid string) (map[string]string, error) {
+	n, err := d.getNetwork(nid)
+	if err != nil {
+		return nil, err
 	}
-	if n == nil {
-		return nil, ErrNoNetwork(nid)
-	}
-
-	// Sanity check
-	n.Lock()
-	if n.id != nid {
-		n.Unlock()
-		return nil, InvalidNetworkIDError(nid)
-	}
-	n.Unlock()
 
 	// Check if endpoint id is good and retrieve correspondent endpoint
 	ep, err := n.getEndpoint(eid)
@@ -964,39 +919,36 @@ func (d *bridgeDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}
 		return nil, err
 	}
 	if ep == nil {
-		return nil, ErrNoEndpoint(eid)
+		return nil, EndpointNotFoundError(eid)
 	}
 
-	m := make(map[string]interface{})
+	m := make(map[string]string)
 
-	if ep.extConnConfig != nil && ep.extConnConfig.ExposedPorts != nil {
+	if ep.exposedPorts != nil {
 		// Return a copy of the config data
-		epc := make([]types.TransportPort, 0, len(ep.extConnConfig.ExposedPorts))
-		for _, tp := range ep.extConnConfig.ExposedPorts {
-			epc = append(epc, tp.GetCopy())
+		strs := make([]string, 0, len(ep.exposedPorts))
+		for _, tp := range ep.exposedPorts {
+			strs = append(strs, tp.String())
 		}
-		m[netlabel.ExposedPorts] = epc
+		m[netlabel.ExposedPorts] = strings.Join(strs, ",")
 	}
 
-	if ep.portMapping != nil {
-		// Return a copy of the operational data
-		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
-		for _, pm := range ep.portMapping {
-			pmc = append(pmc, pm.GetCopy())
-		}
-		m[netlabel.PortMap] = pmc
+	if ep.macAddress != nil {
+		m[netlabel.MacAddress] = ep.macAddress.String()
 	}
 
-	if len(ep.macAddress) != 0 {
-		m[netlabel.MacAddress] = ep.macAddress
+	n.Lock()
+	if n.config.DefaultGatewayIPv4 != nil {
+		m[netlabel.Gateway] = n.config.DefaultGatewayIPv4.String()
 	}
+	n.Unlock()
 
 	return m, nil
 }
-*/
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *bridgeDriver) Join(nid, eid string, sboxKey string, options map[string]interface{}) (*JoinResponse, error) {
+// TODO(nategraf) Parse and store exposed ports here to return on EndpointInfo call.
+func (d *bridgeDriver) Join(nid, eid, sboxKey string, options map[string]interface{}) (*JoinResponse, error) {
 	defer osl.InitOSContext()()
 
 	network, err := d.getNetwork(nid)
@@ -1040,98 +992,12 @@ func (d *bridgeDriver) Leave(nid, eid string) error {
 	if err != nil {
 		return err
 	}
-
 	if endpoint == nil {
 		return EndpointNotFoundError(eid)
 	}
 
 	return nil
 }
-
-/*
-func (d *bridgeDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
-	defer osl.InitOSContext()()
-
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
-
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-
-	if endpoint == nil {
-		return EndpointNotFoundError(eid)
-	}
-
-	endpoint.extConnConfig, err = parseConnectivityOptions(options)
-	if err != nil {
-		return err
-	}
-
-	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = network.allocatePorts(endpoint, network.config.DefaultBindingIP, d.config.EnableUserlandProxy)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			if e := network.releasePorts(endpoint); e != nil {
-				logrus.Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
-					eid, err, e)
-			}
-			endpoint.portMapping = nil
-		}
-	}()
-
-	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
-	}
-
-	return nil
-}
-
-func (d *bridgeDriver) RevokeExternalConnectivity(nid, eid string) error {
-	defer osl.InitOSContext()()
-
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
-
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-
-	if endpoint == nil {
-		return EndpointNotFoundError(eid)
-	}
-
-	err = network.releasePorts(endpoint)
-	if err != nil {
-		logrus.Warn(err)
-	}
-
-	endpoint.portMapping = nil
-
-	// Clean the connection tracker state of the host for the specific endpoint
-	// The host kernel keeps track of the connections (TCP and UDP), so if a new endpoint gets the same IP of
-	// this one (that is going down), is possible that some of the packets would not be routed correctly inside
-	// the new endpoint
-	// Deeper details: https://github.com/docker/docker/issues/8795
-	clearEndpointConnections(d.nlh, endpoint)
-
-	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
-	}
-
-	return nil
-}
-*/
 
 func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfiguration, error) {
 	if epOptions == nil {
@@ -1150,34 +1016,6 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfigurat
 
 	return ec, nil
 }
-
-/*
-func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityConfiguration, error) {
-	if cOptions == nil {
-		return nil, nil
-	}
-
-	cc := &connectivityConfiguration{}
-
-	if opt, ok := cOptions[netlabel.PortMap]; ok {
-		if pb, ok := opt.([]types.PortBinding); ok {
-			cc.PortBindings = pb
-		} else {
-			return nil, types.BadRequestErrorf("Invalid port mapping data in connectivity configuration: %v", opt)
-		}
-	}
-
-	if opt, ok := cOptions[netlabel.ExposedPorts]; ok {
-		if ports, ok := opt.([]types.TransportPort); ok {
-			cc.ExposedPorts = ports
-		} else {
-			return nil, types.BadRequestErrorf("Invalid exposed ports data in connectivity configuration: %v", opt)
-		}
-	}
-
-	return cc, nil
-}
-*/
 
 func electMacAddress(epConfig *endpointConfiguration, ip net.IP) net.HardwareAddr {
 	if epConfig != nil && epConfig.MacAddress != nil {
