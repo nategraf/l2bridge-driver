@@ -968,13 +968,17 @@ func (d *bridgeDriver) Join(nid, eid, sboxKey string, options map[string]interfa
 		containerVethPrefix = network.config.ContainerIfacePrefix
 	}
 
+	// Unless a gateway is explicitly set by the user in AuxAddresses, disable gateway functions.
+	noGateway := network.config.DefaultGatewayIPv4 == nil && network.config.DefaultGatewayIPv6 == nil
+
 	return &JoinResponse{
 		InterfaceName: InterfaceName{
 			SrcName:   endpoint.srcName,
 			DstPrefix: containerVethPrefix,
 		},
-		Gateway:     network.config.DefaultGatewayIPv4,
-		GatewayIPv6: network.config.DefaultGatewayIPv6,
+		Gateway:               network.config.DefaultGatewayIPv4,
+		GatewayIPv6:           network.config.DefaultGatewayIPv6,
+		DisableGatewayService: noGateway,
 	}, nil
 }
 
