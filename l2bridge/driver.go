@@ -1,6 +1,8 @@
 package l2bridge
 
 import (
+	"reflect"
+
 	"github.com/docker/go-plugins-helpers/network"
 	"github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -12,7 +14,7 @@ type Driver struct {
 
 func NewDriver() *Driver {
 	return &Driver{
-		bridge: newBridgeDriver(),
+		bridge: NewBridgeDriver(nil),
 	}
 }
 
@@ -21,7 +23,17 @@ var capabilities = &network.CapabilitiesResponse{
 	ConnectivityScope: network.LocalScope,
 }
 
+// unwrap gives the pointed to value if the i is an non-nil pointer.
+func unwrap(i interface{}) interface{} {
+	if v := reflect.ValueOf(i); v.Kind() == reflect.Ptr && !v.IsNil() {
+		return v.Elem()
+	}
+	return i
+}
+
+// logRequest logs request inputs and results.
 func logRequest(fname string, req interface{}, res interface{}, err error) {
+	req, res = unwrap(req), unwrap(res)
 	if err == nil {
 		if res == nil {
 			logrus.Infof("%s(%v)", fname, req)

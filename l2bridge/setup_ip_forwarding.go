@@ -1,5 +1,4 @@
 package l2bridge
-/*
 
 import (
 	"fmt"
@@ -43,7 +42,9 @@ func setupIPForwarding(enableIPTables bool) error {
 		if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 			if err := configureIPForwarding(false); err != nil {
 				logrus.Errorf("Disabling IP forwarding failed, %v", err)
+				return err
 			}
+			logrus.Warn("Disabled IP forwarding because setting default FORWARD policy failed.")
 			return err
 		}
 		iptables.OnReloaded(func() {
@@ -55,4 +56,3 @@ func setupIPForwarding(enableIPTables bool) error {
 	}
 	return nil
 }
-*/

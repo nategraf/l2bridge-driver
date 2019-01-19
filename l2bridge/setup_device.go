@@ -47,7 +47,7 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 func setupDeviceUp(config *networkConfiguration, i *bridgeInterface) error {
 	err := i.nlh.LinkSetUp(i.Link)
 	if err != nil {
-		return fmt.Errorf("Failed to set link up for %s: %v", config.BridgeName, err)
+		return fmt.Errorf("failed to set link up for %s: %v", config.BridgeName, err)
 	}
 
 	// Attempt to update the bridge interface to refresh the flags status,

@@ -16,6 +16,15 @@ type IPAMData struct {
 	AuxAddresses map[string]*net.IPNet
 }
 
+func ParseIPv4(s string) (*net.IPNet, error) {
+	ip, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		return nil, err
+	}
+	ipnet.IP = ip
+	return ipnet, nil
+}
+
 func ParseIPAMDataSlice(in []*network.IPAMData) ([]*IPAMData, error) {
 	var out []*IPAMData
 	for _, data := range in {
@@ -35,12 +44,12 @@ func ParseIPAMData(in *network.IPAMData) (*IPAMData, error) {
 
 	var err error
 	if in.Pool != "" {
-		if _, out.Pool, err = net.ParseCIDR(in.Pool); err != nil {
+		if out.Pool, err = ParseIPv4(in.Pool); err != nil {
 			return out, fmt.Errorf("bad pool address: %v ", err)
 		}
 	}
 	if in.Gateway != "" {
-		if _, out.Gateway, err = net.ParseCIDR(in.Gateway); err != nil {
+		if out.Gateway, err = ParseIPv4(in.Gateway); err != nil {
 			return out, fmt.Errorf("bad gateway address: %v ", err)
 		}
 	}
@@ -53,7 +62,7 @@ func ParseIPAMData(in *network.IPAMData) (*IPAMData, error) {
 		case *net.IPNet:
 			out.AuxAddresses[key] = addr
 		case string:
-			if _, out.AuxAddresses[key], err = net.ParseCIDR(addr); err != nil {
+			if out.AuxAddresses[key], err = ParseIPv4(addr); err != nil {
 				return out, fmt.Errorf("bad aux address %s: %v", key, err)
 			}
 		default:
@@ -80,12 +89,12 @@ func ParseEndpointInterface(in *network.EndpointInterface) (*EndpointInterface, 
 		}
 	}
 	if in.Address != "" {
-		if _, out.Address, err = net.ParseCIDR(in.Address); err != nil {
+		if out.Address, err = ParseIPv4(in.Address); err != nil {
 			return nil, fmt.Errorf("bad IPv4 address: %v ", err)
 		}
 	}
 	if in.AddressIPv6 != "" {
-		if _, out.AddressIPv6, err = net.ParseCIDR(in.AddressIPv6); err != nil {
+		if out.AddressIPv6, err = ParseIPv4(in.AddressIPv6); err != nil {
 			return nil, fmt.Errorf("bad ipv6 address: %v ", err)
 		}
 	}

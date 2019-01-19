@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	//"os"
-	//"os/exec"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 
-	//"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/ns"
@@ -39,18 +38,14 @@ const (
 	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
 )
 
-/*
 type iptableCleanFunc func() error
 type iptablesCleanFuncs []iptableCleanFunc
-*/
 
 // configuration info for the "bridge" driver.
 // TODO(nategraf) Prune options that don't matter or won't work.
-type configuration struct {
-	EnableIPForwarding  bool
-	EnableIPTables      bool
-	EnableUserlandProxy bool
-	UserlandProxyPath   string
+type Configuration struct {
+	EnableIPForwarding bool
+	EnableIPTables     bool
 }
 
 // networkConfiguration for network specific configuration
@@ -97,49 +92,35 @@ type bridgeEndpoint struct {
 }
 
 type bridgeNetwork struct {
-	id        string
-	bridge    *bridgeInterface // The bridge's L3 interface
-	config    *networkConfiguration
-	endpoints map[string]*bridgeEndpoint // key: endpoint id
-	driver    *bridgeDriver              // The network's driver
-	//iptCleanFuncs iptablesCleanFuncs
+	id            string
+	bridge        *bridgeInterface // The bridge's L3 interface
+	config        *networkConfiguration
+	endpoints     map[string]*bridgeEndpoint // key: endpoint id
+	driver        *bridgeDriver              // The network's driver
+	iptCleanFuncs iptablesCleanFuncs
 	sync.Mutex
 }
 
 // TODO(nategraf) Consolidate this driver code (ripped from libnetwork/drivers) with the remote driver code.
 type bridgeDriver struct {
-	config  *configuration
-	network *bridgeNetwork
-	//natChain        *iptables.ChainInfo
-	//filterChain     *iptables.ChainInfo
-	//isolationChain1 *iptables.ChainInfo
-	//isolationChain2 *iptables.ChainInfo
+	config        *Configuration
+	network       *bridgeNetwork
 	networks      map[string]*bridgeNetwork
 	nlh           *netlink.Handle
 	configNetwork sync.Mutex
 	sync.Mutex
 }
 
-// newBridgeDriver constructs a new bridge driver
-func newBridgeDriver() *bridgeDriver {
-	return &bridgeDriver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
-}
-
-// Init registers a new instance of bridge driver
-/*
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	d := NewDriver()
-	if err := d.configure(config); err != nil {
-		return err
+// NewBridgeDriver constructs a new bridge driver
+func NewBridgeDriver(config *Configuration) *bridgeDriver {
+	if config == nil {
+		config = &Configuration{
+			EnableIPForwarding: true,
+			EnableIPTables:     true,
+		}
 	}
-
-	c := driverapi.Capability{
-		DataScope:         "local",
-		ConnectivityScope: "local",
-	}
-	return dc.RegisterDriver(networkType, d, c)
+	return &bridgeDriver{networks: map[string]*bridgeNetwork{}, config: config}
 }
-*/
 
 // Validate performs a static validation on the network configuration parameters.
 // Whatever can be assessed a priori before attempting any programming.
@@ -219,22 +200,9 @@ func parseErr(label, value, errString string) error {
 	return types.BadRequestErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-/*
 func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
 	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
-
-func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
-	n.Lock()
-	defer n.Unlock()
-
-	if n.driver == nil {
-		return nil, nil, nil, nil, types.BadRequestErrorf("no driver found")
-	}
-
-	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain1, n.driver.isolationChain2, nil
-}
-*/
 
 func (n *bridgeNetwork) getNetworkBridgeName() string {
 	n.Lock()
@@ -259,66 +227,45 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 }
 
 func (d *bridgeDriver) configure(option map[string]interface{}) error {
-	/*
-		        var (
-				natChain        *iptables.ChainInfo
-				filterChain     *iptables.ChainInfo
-				isolationChain1 *iptables.ChainInfo
-				isolationChain2 *iptables.ChainInfo
-			)
-	*/
-
 	genericData, ok := option[netlabel.GenericData]
 	if !ok || genericData == nil {
 		return nil
 	}
 
-	var config *configuration
+	var config *Configuration
 	switch opt := genericData.(type) {
 	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
+		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
 		if err != nil {
 			return err
 		}
-		config = opaqueConfig.(*configuration)
-	case *configuration:
+		config = opaqueConfig.(*Configuration)
+	case *Configuration:
 		config = opt
 	default:
 		return &ErrInvalidDriverConfig{}
 	}
 
-	/*
-		if config.EnableIPTables {
-			if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
-				if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
-					logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
-				}
+	if config.EnableIPTables {
+		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
+			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
+				logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
 			}
-			removeIPChains()
-			natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config)
-			if err != nil {
-				return err
-			}
-			// Make sure on firewall reload, first thing being re-played is chains creation
-			iptables.OnReloaded(func() { logrus.Debugf("Recreating iptables chains on firewall reload"); setupIPChains(config) })
 		}
+	}
 
-		if config.EnableIPForwarding {
-			if err := setupIPForwarding(config.EnableIPTables); err != nil {
-				logrus.Warn(err)
-				return err
-			}
+	if config.EnableIPForwarding {
+		if err := setupIPForwarding(config.EnableIPTables); err != nil {
+			logrus.Warnf("Failed to setup IP forwarding: ", err)
+			return err
 		}
-	*/
+	}
 
 	d.Lock()
-	//d.natChain = natChain
-	//d.filterChain = filterChain
-	//d.isolationChain1 = isolationChain1
-	//d.isolationChain2 = isolationChain2
 	d.config = config
 	d.Unlock()
 
+	// TODO(nategraf) Implement storage.
 	//if err := d.initStore(option); err != nil {
 	//	return err
 	//}
@@ -439,21 +386,6 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 	return config, nil
 }
 
-/*
-
-// Returns the non link-local IPv6 subnet for the containers attached to this bridge if found, nil otherwise
-func getV6Network(config *networkConfiguration, i *bridgeInterface) *net.IPNet {
-	if config.PoolIPv6 != nil {
-		return config.PoolIPv6
-	}
-	if i.bridgeIPv6 != nil && i.bridgeIPv6.IP != nil && !i.bridgeIPv6.IP.IsLinkLocalUnicast() {
-		return i.bridgeIPv6
-	}
-
-	return nil
-}
-
-*/
 // Return a slice of networks over which caller can iterate safely
 func (d *bridgeDriver) getNetworks() []*bridgeNetwork {
 	d.Lock()
@@ -546,24 +478,14 @@ func (d *bridgeDriver) createNetwork(config *networkConfiguration) (err error) {
 		bridgeSetup.queueStep(setupDevice)
 	}
 
-	/* TODO(nategraf) Is there any reason to keep IP tables functionality?
-	// Conditionally queue setup steps depending on configuration values.
-	for _, step := range []struct {
-		Condition bool
-		Fn        setupStep
-	}{
+	if d.config.EnableIPTables {
 		// Setup IPTables.
-		{d.config.EnableIPTables, network.setupIPTables},
+		bridgeSetup.queueStep(network.setupIPTables)
 
 		//We want to track firewalld configuration so that
 		//if it is started/reloaded, the rules can be applied correctly
-		{d.config.EnableIPTables, network.setupFirewalld},
-	} {
-		if step.Condition {
-			bridgeSetup.queueStep(step.Fn)
-		}
+		bridgeSetup.queueStep(network.setupFirewalld)
 	}
-	*/
 
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
@@ -629,13 +551,12 @@ func (d *bridgeDriver) deleteNetwork(nid string) error {
 		logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 	}
 
-	// clean all relevant iptables rules
-	// TODO(nategraf) Implement IP Tables support (?)
-	//for _, cleanFunc := range n.iptCleanFuncs {
-	//	if errClean := cleanFunc(); errClean != nil {
-	//		logrus.Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
-	//	}
-	//}
+	for _, cleanFunc := range n.iptCleanFuncs {
+		if errClean := cleanFunc(); errClean != nil {
+			logrus.Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
+		}
+	}
+
 	// TODO(nategraf) Implement storage.
 	return nil // d.storeDelete(config)
 }
@@ -795,14 +716,10 @@ func (d *bridgeDriver) CreateEndpoint(nid, eid string, ei *EndpointInterface, ep
 		return nil, fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
-	d.Lock()
-	en := d.config.EnableUserlandProxy
-	d.Unlock()
-	if !en {
-		err = setHairpinMode(d.nlh, host, true)
-		if err != nil {
-			return nil, err
-		}
+	// Allow packets to enter and leave the same (bridge) interface.
+	err = setHairpinMode(d.nlh, host, true)
+	if err != nil {
+		return nil, err
 	}
 
 	// Store the sandbox side pipe interface parameters
@@ -814,7 +731,7 @@ func (d *bridgeDriver) CreateEndpoint(nid, eid string, ei *EndpointInterface, ep
 	// Set the sbox's MAC if not provided. If specified, use the one configured by user, otherwise generate one based on IP.
 	eiOut := &EndpointInterface{}
 	if endpoint.macAddress == nil {
-		endpoint.macAddress = electMacAddress(epConfig, endpoint.addr.IP)
+		endpoint.macAddress = netutils.GenerateRandomMAC()
 		eiOut.MacAddress = endpoint.macAddress
 	}
 
@@ -1019,11 +936,4 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfigurat
 	}
 
 	return ec, nil
-}
-
-func electMacAddress(epConfig *endpointConfiguration, ip net.IP) net.HardwareAddr {
-	if epConfig != nil && epConfig.MacAddress != nil {
-		return epConfig.MacAddress
-	}
-	return netutils.GenerateMACFromIP(ip)
 }

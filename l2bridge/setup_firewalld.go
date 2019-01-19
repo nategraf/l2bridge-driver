@@ -1,5 +1,4 @@
 package l2bridge
-/*
 
 import "github.com/docker/libnetwork/iptables"
 
@@ -15,8 +14,6 @@ func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeIn
 	}
 
 	iptables.OnReloaded(func() { n.setupIPTables(config, i) })
-	iptables.OnReloaded(n.portMapper.ReMapAll)
 
 	return nil
 }
-*/
