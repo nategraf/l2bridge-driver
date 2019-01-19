@@ -1,0 +1,16 @@
+version: '3.3'
+
+services:
+    larry:
+        build: ./ping
+        image: l2bridge/ping
+        command: ["moe"]
+
+    moe:
+        build: ./ping
+        image: l2bridge/ping
+        command: ["larry"]
+
+networks:
+    default:
+        driver: l2bridge
