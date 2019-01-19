@@ -1,4 +1,5 @@
 package l2bridge
+
 /*
 
 import (
@@ -50,7 +51,7 @@ func setupBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) e
 	return nil
 }
 
-//Enable bridge net filtering if ip forwarding is enabled. See github issue #11404
+//Enable bridge net filtering if ip forwarding is enabled. See github.com/moby/moby/issue/11404
 func checkBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) error {
 	ipVer := getIPVersion(config)
 	iface := config.BridgeName
@@ -118,28 +119,6 @@ func getBridgeNFKernelParam(ipVer ipVersion) string {
 	default:
 		return ""
 	}
-}
-
-//Gets the value of the kernel parameters located at the given path
-func getKernelBoolParam(path string) (bool, error) {
-	enabled := false
-	line, err := ioutil.ReadFile(path)
-	if err != nil {
-		return false, err
-	}
-	if len(line) > 0 {
-		enabled = line[0] == '1'
-	}
-	return enabled, err
-}
-
-//Sets the value of the kernel parameter located at the given path
-func setKernelBoolParam(path string, on bool) error {
-	value := byte('0')
-	if on {
-		value = byte('1')
-	}
-	return ioutil.WriteFile(path, []byte{value, '\n'}, 0644)
 }
 
 //Checks to see if packet forwarding is enabled

@@ -59,3 +59,16 @@ func setupDeviceUp(config *networkConfiguration, i *bridgeInterface) error {
 	}
 	return nil
 }
+
+// setupDisableIPv6 prevents automatic assignment of an IPv6 address to the bridge.
+func setupDisableIPv6(config *networkConfiguration, i *bridgeInterface) error {
+	path := fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", config.BridgeName)
+	enabled, err := getSysBoolParam(path)
+	if enabled || err != nil {
+		return fmt.Errorf("failed to read ipv6 autoconf value: %v", err)
+	}
+	if err := setSysBoolParam(path, true); err != nil {
+		return fmt.Errorf("failed to disable ipv6 autoconf: %v", err)
+	}
+	return nil
+}

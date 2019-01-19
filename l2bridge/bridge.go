@@ -478,6 +478,9 @@ func (d *bridgeDriver) createNetwork(config *networkConfiguration) (err error) {
 		bridgeSetup.queueStep(setupDevice)
 	}
 
+	// Prevent the bridge from obtaining an IPv6 address.
+	bridgeSetup.queueStep(setupDisableIPv6)
+
 	if d.config.EnableIPTables {
 		// Setup IPTables.
 		bridgeSetup.queueStep(network.setupIPTables)
