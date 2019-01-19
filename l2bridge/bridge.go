@@ -41,8 +41,7 @@ const (
 type iptableCleanFunc func() error
 type iptablesCleanFuncs []iptableCleanFunc
 
-// configuration info for the "bridge" driver.
-// TODO(nategraf) Prune options that don't matter or won't work.
+// Configuration info for the "bridge" driver.
 type Configuration struct {
 	EnableIPForwarding bool
 	EnableIPTables     bool
@@ -249,14 +248,14 @@ func (d *bridgeDriver) configure(option map[string]interface{}) error {
 	if config.EnableIPTables {
 		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
-				logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
+				logrus.WithError(err).Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
 			}
 		}
 	}
 
 	if config.EnableIPForwarding {
 		if err := setupIPForwarding(config.EnableIPTables); err != nil {
-			logrus.Warnf("Failed to setup IP forwarding: ", err)
+			logrus.WithError(err).Warnf("Failed to setup IP forwarding: ", err)
 			return err
 		}
 	}
@@ -551,12 +550,12 @@ func (d *bridgeDriver) deleteNetwork(nid string) error {
 	}()
 
 	if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
-		logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+		logrus.WithError(err).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 	}
 
 	for _, cleanFunc := range n.iptCleanFuncs {
-		if errClean := cleanFunc(); errClean != nil {
-			logrus.Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
+		if err := cleanFunc(); err != nil {
+			logrus.WithError(err).Warnf("Failed to clean iptables rules for bridge network: %v", err)
 		}
 	}
 
@@ -867,8 +866,7 @@ func (d *bridgeDriver) EndpointInfo(nid, eid string) (map[string]string, error) 
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-// TODO(nategraf) Parse and store exposed ports here to return on EndpointInfo call.
-func (d *bridgeDriver) Join(nid, eid, sboxKey string, options map[string]interface{}) (*JoinResponse, error) {
+func (d *bridgeDriver) Join(nid, eid, sboxKey string, opts map[string]interface{}) (*JoinResponse, error) {
 	defer osl.InitOSContext()()
 
 	network, err := d.getNetwork(nid)
@@ -886,6 +884,15 @@ func (d *bridgeDriver) Join(nid, eid, sboxKey string, options map[string]interfa
 	containerVethPrefix := defaultContainerVethPrefix
 	if network.config.ContainerIfacePrefix != "" {
 		containerVethPrefix = network.config.ContainerIfacePrefix
+	}
+
+	if value, ok := opts[netlabel.ExposedPorts]; ok {
+		ports, err := parseTransportPorts(value)
+		if err == nil {
+			endpoint.exposedPorts = ports
+		} else {
+			logrus.WithError(err).Warnf("parsing of %s failed: %v", netlabel.ExposedPorts, err)
+		}
 	}
 
 	// Unless a gateway is explicitly set by the user in AuxAddresses, disable gateway functions.
@@ -939,4 +946,45 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfigurat
 	}
 
 	return ec, nil
+}
+
+// parseTransportPorts unpacks the opaque transport ports array passed by libnetwork.
+func parseTransportPorts(in interface{}) ([]types.TransportPort, error) {
+	slice, ok := in.([]interface{})
+	if !ok {
+		return nil, &ErrInvalidTransportPortsOption{}
+	}
+
+	var out []types.TransportPort
+	for _, value := range slice {
+		dict, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, &ErrInvalidTransportPortsOption{}
+		}
+
+		var tp types.TransportPort
+		if proto, ok := dict["Proto"]; ok {
+			switch x := proto.(type) {
+			case float64:
+				tp.Proto = types.Protocol(x)
+			default:
+				return nil, &ErrInvalidTransportPortsOption{}
+			}
+		} else {
+			return nil, &ErrInvalidTransportPortsOption{}
+		}
+
+		if port, ok := dict["Port"]; ok {
+			switch x := port.(type) {
+			case float64:
+				tp.Port = uint16(x)
+			default:
+				return nil, &ErrInvalidTransportPortsOption{}
+			}
+		} else {
+			return nil, &ErrInvalidTransportPortsOption{}
+		}
+		out = append(out, tp)
+	}
+	return out, nil
 }

@@ -44,26 +44,26 @@ func logRequest(fname string, req interface{}, res interface{}, err error) {
 	}
 	switch err.(type) {
 	case types.MaskableError:
-		logrus.Infof("[MaskableError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Infof("[MaskableError] %s(%v): %v", fname, req, err)
 	case types.RetryError:
-		logrus.Infof("[RetryError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Infof("[RetryError] %s(%v): %v", fname, req, err)
 	case types.BadRequestError:
-		logrus.Warnf("[BadRequestError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Warnf("[BadRequestError] %s(%v): %v", fname, req, err)
 	case types.NotFoundError:
-		logrus.Warnf("[NotFoundError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Warnf("[NotFoundError] %s(%v): %v", fname, req, err)
 	case types.ForbiddenError:
-		logrus.Warnf("[ForbiddenError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Warnf("[ForbiddenError] %s(%v): %v", fname, req, err)
 	case types.NoServiceError:
-		logrus.Warnf("[NoServiceError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Warnf("[NoServiceError] %s(%v): %v", fname, req, err)
 	case types.NotImplementedError:
-		logrus.Warnf("[NotImplementedError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Warnf("[NotImplementedError] %s(%v): %v", fname, req, err)
 	case types.TimeoutError:
-		logrus.Errorf("[TimeoutError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Errorf("[TimeoutError] %s(%v): %v", fname, req, err)
 	case types.InternalError:
-		logrus.Errorf("[InternalError] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Errorf("[InternalError] %s(%v): %v", fname, req, err)
 	default:
 		// Unclassified errors should be treated as bad.
-		logrus.Errorf("[UNKNOWN] %s(%v): %v", fname, req, err)
+		logrus.WithError(err).Errorf("[UNKNOWN] %s(%v): %v", fname, req, err)
 	}
 }
 

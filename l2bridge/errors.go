@@ -58,6 +58,16 @@ func (eiec *ErrInvalidEndpointConfig) Error() string {
 // BadRequest denotes the type of this error
 func (eiec *ErrInvalidEndpointConfig) BadRequest() {}
 
+// ErrInvalidTransportPortsOption is returned when the driver recieves a request with a TransportPorts key that could not be decoded.
+type ErrInvalidTransportPortsOption struct{}
+
+func (eitp *ErrInvalidTransportPortsOption) Error() string {
+	return "specified transport ports could not be decoded"
+}
+
+// BadRequest denotes the type of this error
+func (eitp *ErrInvalidTransportPortsOption) BadRequest() {}
+
 /*
 // ErrNetworkExists error is returned when a network already exists and another network is created.
 type ErrNetworkExists struct{}
