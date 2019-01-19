@@ -9,8 +9,8 @@ import (
 
 // Interface models the bridge network device.
 type bridgeInterface struct {
-	Link        netlink.Link
-	nlh         *netlink.Handle
+	Link netlink.Link
+	nlh  *netlink.Handle
 }
 
 // newInterface creates a new bridge interface structure. It attempts to find
@@ -53,20 +53,3 @@ func (i *bridgeInterface) addresses() ([]netlink.Addr, []netlink.Addr, error) {
 	}
 	return v4addr, v6addr, nil
 }
-
-/*
-func (i *bridgeInterface) programIPv6Address() error {
-	_, nlAddressList, err := i.addresses()
-	if err != nil {
-		return &IPv6AddrAddError{IP: i.bridgeIPv6, Err: fmt.Errorf("failed to retrieve address list: %v", err)}
-	}
-	nlAddr := netlink.Addr{IPNet: i.bridgeIPv6}
-	if findIPv6Address(nlAddr, nlAddressList) {
-		return nil
-	}
-	if err := i.nlh.AddrAdd(i.Link, &nlAddr); err != nil {
-		return &IPv6AddrAddError{IP: i.bridgeIPv6, Err: err}
-	}
-	return nil
-}
-*/
