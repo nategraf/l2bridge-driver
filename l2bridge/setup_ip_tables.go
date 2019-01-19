@@ -6,7 +6,6 @@ import (
 	"github.com/docker/libnetwork/iptables"
 )
 
-// TODO(nategraf) Look into creating a new chain to avoid clobbering the host environment.
 func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
 	d := n.driver
 	d.Lock()
@@ -15,29 +14,29 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 
 	// Sanity check.
 	if driverConfig.EnableIPTables == false {
-		return errors.New("Cannot program chains, EnableIPTable is disabled")
+		return errors.New("cannot program chains, EnableIPTable is disabled")
 	}
 
-	if err := setIcc(config.BridgeName, true); err != nil {
-		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+	if err := setLocalForwarding(config.BridgeName, true); err != nil {
+		return fmt.Errorf("failed to setup IP tables: %v", err)
 	}
 	n.registerIptCleanFunc(func() error {
-		return setIcc(config.BridgeName, false)
+		return setLocalForwarding(config.BridgeName, false)
 	})
 
 	return nil
 }
 
-// setIcc add or removes a rule to allow traffic to pass through the bridge locally depending
+// setLocalForwarding add or removes a rule to allow traffic to pass through the bridge locally depending
 // on whether enable is true or false respectivly.
-func setIcc(bridgeIface string, insert bool) error {
+func setLocalForwarding(bridgeIface string, enable bool) error {
 	var (
 		table = iptables.Filter
 		chain = "FORWARD"
 		rule  = []string{"-i", bridgeIface, "-o", bridgeIface, "-j", "ACCEPT"}
 	)
 
-	if insert {
+	if enable {
 		if err := iptables.ProgramRule(table, chain, iptables.Append, rule); err != nil {
 			return fmt.Errorf("unable to setup bridge forwarding rule: %v", err)
 		}
