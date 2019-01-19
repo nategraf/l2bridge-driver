@@ -6,9 +6,9 @@ The majority of the code in this code is appropriated from the [libnetwork bridg
 are largely reductive.
 
 Features, compared to the standard bridge driver:
-    * Overlapping ip subnets are permitted.
-    * Bridge interface is assigned no IP addresses, keeping it at layer 2 and increasing security.
-    * External interfaces may be attached without trouble.
+  * Overlapping ip subnets are permitted.
+  * Bridge interface is assigned no IP addresses, keeping it at layer 2 and increasing security.
+  * External interfaces may be attached without trouble.
 
 This driver is written in support of my larger project [Naumachia]. Check it out!
 
