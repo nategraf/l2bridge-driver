@@ -4,13 +4,25 @@ services:
     larry:
         build: ./ping
         image: l2bridge/ping
-        command: ["moe"]
+        command: ["-c", "5", "moe"]
+        networks:
+            default:
+                ipv4_address: 192.168.0.3
 
     moe:
         build: ./ping
         image: l2bridge/ping
-        command: ["larry"]
+        command: ["-c", "5", "larry"]
+        networks:
+            default:
+                ipv4_address: 192.168.0.2
 
 networks:
     default:
         driver: l2bridge
+        ipam:
+            driver: static
+            config:
+                - subnet: 192.168.0.0/24
+        driver_opts:
+            l2bridge.gateway: "192.168.0.1"

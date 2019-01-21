@@ -19,6 +19,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/nategraf/l2bridge-driver/label"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -149,14 +150,39 @@ func (c *networkConfiguration) Validate() error {
 
 func (c *networkConfiguration) fromLabels(labels map[string]interface{}) error {
 	var err error
-	for label, value := range labels {
-		switch label {
-		case BridgeName:
+	for key, value := range labels {
+		switch key {
+		case label.DockerBridgeName, label.BridgeName:
 			switch name := value.(type) {
 			case string:
 				c.BridgeName = name
 			default:
-				return fmt.Errorf("unrecognized type for %s: %T", label, name)
+				return fmt.Errorf("unrecognized type for %s: %T", key, name)
+			}
+		case label.GatewayIPv4:
+			logrus.Infof("GOT %s = %v", key, value)
+			switch gateway := value.(type) {
+			case string:
+				c.DefaultGatewayIPv4 = net.ParseIP(gateway)
+				if c.DefaultGatewayIPv4 == nil {
+					return fmt.Errorf("failed to parse %s: %v is not a valid IPv4 address", label.GatewayIPv4, gateway)
+				}
+			case net.IP:
+				c.DefaultGatewayIPv4 = gateway
+			default:
+				return fmt.Errorf("unrecognized type for %s: %T", key, gateway)
+			}
+		case label.GatewayIPv6:
+			switch gateway := value.(type) {
+			case string:
+				c.DefaultGatewayIPv6 = net.ParseIP(gateway)
+				if c.DefaultGatewayIPv6 == nil {
+					return fmt.Errorf("failed to parse %s: %v is not a valid IPv6 address", label.GatewayIPv6, gateway)
+				}
+			case net.IP:
+				c.DefaultGatewayIPv6 = gateway
+			default:
+				return fmt.Errorf("unrecognized type for %s: %T", key, gateway)
 			}
 		case netlabel.DriverMTU:
 			switch mtu := value.(type) {
@@ -164,10 +190,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]interface{}) error {
 				c.Mtu = mtu
 			case string:
 				if c.Mtu, err = strconv.Atoi(mtu); err != nil {
-					return parseErr(label, mtu, err.Error())
+					return parseErr(key, mtu, err.Error())
 				}
 			default:
-				return fmt.Errorf("unrecognized type for %s: %T", label, mtu)
+				return fmt.Errorf("unrecognized type for %s: %T", key, mtu)
 			}
 		case netlabel.EnableIPv6:
 			switch enable := value.(type) {
@@ -175,28 +201,28 @@ func (c *networkConfiguration) fromLabels(labels map[string]interface{}) error {
 				c.EnableIPv6 = enable
 			case string:
 				if c.EnableIPv6, err = strconv.ParseBool(enable); err != nil {
-					return parseErr(label, enable, err.Error())
+					return parseErr(key, enable, err.Error())
 				}
 			default:
-				return fmt.Errorf("unrecognized type for %s: %T", label, enable)
+				return fmt.Errorf("unrecognized type for %s: %T", key, enable)
 			}
 		case netlabel.ContainerIfacePrefix:
 			switch prefix := value.(type) {
 			case string:
 				c.ContainerIfacePrefix = prefix
 			default:
-				return fmt.Errorf("unrecognized type for %s: %T", label, prefix)
+				return fmt.Errorf("unrecognized type for %s: %T", key, prefix)
 			}
 		default:
-			logrus.Warnf("Ignoring unrecognized configuration option %s: %v", label, value)
+			logrus.Warnf("Ignoring unrecognized configuration option %s: %v", key, value)
 		}
 	}
 
 	return nil
 }
 
-func parseErr(label, value, errString string) error {
-	return types.BadRequestErrorf("failed to parse %s value: %v (%s)", label, value, errString)
+func parseErr(key, value, errString string) error {
+	return types.BadRequestErrorf("failed to parse %s value: %v (%s)", key, value, errString)
 }
 
 func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
@@ -895,17 +921,15 @@ func (d *bridgeDriver) Join(nid, eid, sboxKey string, opts map[string]interface{
 		}
 	}
 
-	// Unless a gateway is explicitly set by the user in AuxAddresses, disable gateway functions.
-	noGateway := network.config.DefaultGatewayIPv4 == nil && network.config.DefaultGatewayIPv6 == nil
-
 	return &JoinResponse{
 		InterfaceName: InterfaceName{
 			SrcName:   endpoint.srcName,
 			DstPrefix: containerVethPrefix,
 		},
-		Gateway:               network.config.DefaultGatewayIPv4,
-		GatewayIPv6:           network.config.DefaultGatewayIPv6,
-		DisableGatewayService: noGateway,
+		Gateway:     network.config.DefaultGatewayIPv4,
+		GatewayIPv6: network.config.DefaultGatewayIPv6,
+		// Prevent Docker from creating a default gateway for us.
+		DisableGatewayService: true,
 	}, nil
 }
 
