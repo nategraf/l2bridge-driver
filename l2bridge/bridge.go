@@ -84,6 +84,8 @@ type bridgeEndpoint struct {
 	srcName      string
 	addr         *net.IPNet
 	addrv6       *net.IPNet
+	gatewayv4    net.IP
+	gatewayv6    net.IP
 	macAddress   net.HardwareAddr
 	config       *endpointConfiguration // User specified parameters
 	exposedPorts []types.TransportPort
@@ -756,6 +758,14 @@ func (d *bridgeDriver) CreateEndpoint(nid, eid string, ei *EndpointInterface, ep
 	endpoint.addr = ei.Address
 	endpoint.addrv6 = ei.AddressIPv6
 
+	// Set default gateway info if this endpoint is not the networks gatway.
+	if gw := n.config.DefaultGatewayIPv4; gw != nil && !gw.Equal(endpoint.addr.IP) {
+		endpoint.gatewayv4 = gw
+	}
+	if gw := n.config.DefaultGatewayIPv6; gw != nil && !gw.Equal(endpoint.addr.IP) {
+		endpoint.gatewayv6 = gw
+	}
+
 	// Set the sbox's MAC if not provided. If specified, use the one configured by user, otherwise generate one based on IP.
 	eiOut := &EndpointInterface{}
 	if endpoint.macAddress == nil {
@@ -882,11 +892,11 @@ func (d *bridgeDriver) EndpointInfo(nid, eid string) (map[string]string, error) 
 		m[netlabel.MacAddress] = ep.macAddress.String()
 	}
 
-	n.Lock()
-	if n.config.DefaultGatewayIPv4 != nil {
-		m[netlabel.Gateway] = n.config.DefaultGatewayIPv4.String()
+	if ep.gatewayv4 != nil {
+		m[netlabel.Gateway] = ep.gatewayv4
+	} else if gatewayv6 != nil {
+		m[netlabel.Gateway] = ep.gatewayv6
 	}
-	n.Unlock()
 
 	return m, nil
 }
@@ -926,8 +936,8 @@ func (d *bridgeDriver) Join(nid, eid, sboxKey string, opts map[string]interface{
 			SrcName:   endpoint.srcName,
 			DstPrefix: containerVethPrefix,
 		},
-		Gateway:     network.config.DefaultGatewayIPv4,
-		GatewayIPv6: network.config.DefaultGatewayIPv6,
+		Gateway:     endpoint.gatewayv4,
+		GatewayIPv6: endpoint.gatewayv6,
 		// Prevent Docker from creating a default gateway for us.
 		DisableGatewayService: true,
 	}, nil
