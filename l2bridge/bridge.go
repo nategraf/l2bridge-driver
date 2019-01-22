@@ -893,9 +893,9 @@ func (d *bridgeDriver) EndpointInfo(nid, eid string) (map[string]string, error) 
 	}
 
 	if ep.gatewayv4 != nil {
-		m[netlabel.Gateway] = ep.gatewayv4
-	} else if gatewayv6 != nil {
-		m[netlabel.Gateway] = ep.gatewayv6
+		m[netlabel.Gateway] = ep.gatewayv4.String()
+	} else if ep.gatewayv6 != nil {
+		m[netlabel.Gateway] = ep.gatewayv6.String()
 	}
 
 	return m, nil
