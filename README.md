@@ -12,6 +12,9 @@ Features, compared to the standard bridge driver:
 
 This driver is written in support of my larger project [Naumachia]. Check it out!
 
+[libnetwork bridge]: https://github.com/docker/libnetwork/tree/master/drivers/bridge
+[Naumachia]: https://github.com/nategraf/Naumachia
+
 ## Installation as a service with SysV (Debian/Ubuntu)
 ```bash
 # Download the service script and install it to init.d
@@ -30,7 +33,5 @@ sudo service l2bridge start
 sudo stat /run/docker/plugins/l2bridge.sock
 #  File: /run/docker/plugins/l2bridge.sock
 #  Size: 0               Blocks: 0          IO Block: 4096   socket
+#  ...
 ```
-
-[libnetwork bridge]: https://github.com/docker/libnetwork/tree/master/drivers/bridge
-[Naumachia]: https://github.com/nategraf/Naumachia
