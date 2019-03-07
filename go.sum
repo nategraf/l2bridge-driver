@@ -16,9 +16,8 @@ github.com/davidrjenni/reftools v0.0.0-20180914123528-654d0ba4f96d h1:aRvyac5PN1
 github.com/davidrjenni/reftools v0.0.0-20180914123528-654d0ba4f96d/go.mod h1:8o/GRMvsb9VyFbSEZGXfa0dkSXml4G23W0D/h9FksWM=
 github.com/derekparker/delve v1.1.0 h1:icd65nMp7s2HiLz6y/6RCVXBdoED3xxYLwX09EMaRCc=
 github.com/derekparker/delve v1.1.0/go.mod h1:pMSZMfp0Nhbm8qdZJkuE/yPGOkLpGXLS1I4poXQpuJU=
-github.com/docker/docker v0.7.3-0.20190113135113-ebc0750e9fa6 h1:dLE4IwJtIhLaLxs/h6DKN/QVd4FyCVx5azsKwUWhsL0=
+github.com/docker/docker v0.7.3-0.20190113135113-ebc0750e9fa6 h1:wWvkwiD1vkoVA1pN5ST2fOhnoic4a4Op/4uzVJqInvU=
 github.com/docker/docker v0.7.3-0.20190113135113-ebc0750e9fa6/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
-github.com/docker/docker v1.13.1 h1:IkZjBSIc8hBjLpqeAbeE5mca5mNgeatLHBy3GO78BWo=
 github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKohAFqRJQ=
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
 github.com/docker/go-plugins-helpers v0.0.0-20181025120712-1e6269c305b8 h1:9Hsno4vmXpQ0yVAp07bLxS5dHH24w80xzmUCLil47ME=
